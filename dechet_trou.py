@@ -11,8 +11,8 @@ class Dechet(pygame.sprite.Sprite):
     def __init__(self, type_path):
         super().__init__()
 
-        # Charger l'image UNE SEULE FOIS
-        self.image = pygame.image.load(type_path)
+        # Charger l'image avec transparence
+        self.image = pygame.image.load(type_path).convert_alpha()
 
         # Redimensionner SANS déformer (hauteur fixe)
         nouvelle_hauteur = 150
