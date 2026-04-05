@@ -1,10 +1,10 @@
 import pygame
 
 dico_message = {
-    'Pingu écolo! - assets/compote dechet.png': " ",
-    'Pingu écolo! - assets/bouteille dechet.png': " ",
-    'Pingu écolo! - assets/gateau dechet.png': " ",
-    'Pingu écolo! - assets/trou banquise.png': " "
+    'Pingu écolo! - assets/compote dechet.png': " compote",
+    'Pingu écolo! - assets/bouteille dechet.png': " bouteille",
+    'Pingu écolo! - assets/gateau dechet.png': " gateau",
+    'Pingu écolo! - assets/trou banquise.png': "trou "
 }
 
 class Dechet(pygame.sprite.Sprite):
