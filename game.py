@@ -13,11 +13,13 @@ class Game:
         self.temps_depart = pygame.time.get_ticks()
         self.partie_terminee = False
 
-        # --- VIES ---
+        # --- VIES POINTS CALAMARS ---
         self.vies = 3
         self.en_pause = False
         self.message_collision = ""
         self.game_over = False
+        self.points = 0
+        self.calamars = 0
 
         # --- SON PERDU ---
         self.son_perdu = pygame.mixer.Sound("Pingu écolo! - assets/sounds/perdu.ogg")
