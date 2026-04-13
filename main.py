@@ -1,13 +1,14 @@
 import pygame
-pygame.init()
-
+import sys
 import menu
 from game import Game
 
-pygame.display.set_caption("Pingu écolo !")
-screen = pygame.display.set_mode((1080, 720))
+pygame.init()
 
-# --- ASSETS ---
+screen = pygame.display.set_mode((1080, 720))
+pygame.display.set_caption("Pingu écolo !")
+clock = pygame.time.Clock()
+
 background = pygame.image.load('Pingu écolo! - assets/fond.png').convert()
 banquise = pygame.image.load('Pingu écolo! - assets/banquise.png').convert_alpha()
 
@@ -26,197 +27,235 @@ icon_menu = pygame.image.load("Pingu écolo! - assets/menu.png").convert_alpha()
 icon_menu = pygame.transform.smoothscale(icon_menu, (64, 64))
 menu_rect = icon_menu.get_rect(topleft=(20, 100))
 
-# --- ICÔNE CALAMAR ---
 icon_calamar = pygame.image.load("Pingu écolo! - assets/calamar.png").convert_alpha()
-icon_calamar = pygame.transform.smoothscale(icon_calamar, (32, 32))
+icon_calamar = pygame.transform.smoothscale(icon_calamar, (40, 40))
 
-# --- SLIDES DES REGLES ---
+cible_img = pygame.image.load("Pingu écolo! - assets/cible.png").convert_alpha()
+cible_img = pygame.transform.smoothscale(cible_img, (100, 100))
+
+skin_normal_img = pygame.image.load("Pingu écolo! - assets/Pingu simple .png").convert_alpha()
+skin_rose_img = pygame.image.load("Pingu écolo! - assets/Pingu rose.png").convert_alpha()
+skin_dore_img = pygame.image.load("Pingu écolo! - assets/Pingu dore.png").convert_alpha()
+
+game = Game('Pingu écolo! - assets/Pingu simple .png')
+
 menu.slides_regles[:] = [
     ["RÈGLES DU JEU"],
     ["BUT : évite les obstacles et va jusqu'à la fin !", "Attrape le calamar en sautant."],
-    ["POINTS :", "+25 si tu évites un obstacle", "+50 si tu attrapes le calamar", "+100 si tu finis le parcours"],
-    ["VIES :", "Tu as 3 vies", "-1 si tu touches un obstacle", "0 vie = tu recommences"],
-    ["NIVEAU 2 :", "Débloqué quand tu as 500 points"],
-    ["CONTROLES :", "Flèche gauche = aller à gauche", "Flèche droite = aller à droite"],
-    ["SKINS :", "Pingu simple : gratuit", "Pingu rose : 3 calamars", "Pingu doré : 5 calamars + niveau 2"]
+    ["POINTS :", "+50 si tu attrapes le calamar", "+100 si tu finis le parcours"],
+    ["VIES :", "Tu as 3 vies", "-1 si tu touches un obstacle"],
+    ["CONTROLES :", "Flèches = bouger / cible", "SPACE = sauter"]
 ]
 
-affiche_regles_ecran = False
-affiche_menu_options_ecran = False
-
-# --- GAME ---
-game = Game('Pingu écolo! - assets/Pingu simple .png')
+def afficher_message_centre(screen, texte, sous_texte=""):
+    overlay = pygame.Surface((1080, 720), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 150))
+    screen.blit(overlay, (0, 0))
+    box_rect = pygame.Rect(165, 230, 750, 260)
+    pygame.draw.rect(screen, (255, 240, 200), box_rect, border_radius=25)
+    font_main = pygame.font.SysFont("Comic Sans MS", 35, bold=True)
+    txt_surf = font_main.render(texte, True, (60, 40, 20))
+    screen.blit(txt_surf, (540 - txt_surf.get_width() // 2, 300))
+    if sous_texte:
+        font_sub = pygame.font.SysFont("Comic Sans MS", 25)
+        sub_surf = font_sub.render(sous_texte, True, (100, 80, 60))
+        screen.blit(sub_surf, (540 - sub_surf.get_width() // 2, 400))
 
 SPAWN_EVENT = pygame.USEREVENT + 1
-pygame.time.set_timer(SPAWN_EVENT, 1000 if game.niveau == 1 else 750)
+pygame.time.set_timer(SPAWN_EVENT, 1200)
 
-clock = pygame.time.Clock()
 running = True
+menu_accueil = True
+affiche_regles = False
+affiche_boutique = False
+boutons_boutique = {}
+bouton_close_boutique = None
 
-# --- BOITE COLLISION ---
-def afficher_message(screen, texte):
-    overlay = pygame.Surface((1080, 720), pygame.SRCALPHA)
-    overlay.fill((0, 0, 0, 180))
+while running:
 
-    box = pygame.Surface((750, 260), pygame.SRCALPHA)
-    pygame.draw.rect(box, (255, 240, 200), (0, 0, 750, 260), border_radius=25)
-    pygame.draw.rect(box, (255, 180, 80), (0, 0, 750, 260), width=6, border_radius=25)
-
-    font = pygame.font.SysFont("Comic Sans MS", 38, bold=True)
-    font_small = pygame.font.SysFont("Comic Sans MS", 28)
-
-    txt = font.render(texte, True, (60, 40, 20))
-    info = font_small.render("Appuie sur ENTER pour reprendre le jeu", True, (80, 60, 40))
-
-    box.blit(txt, (375 - txt.get_width()//2, 70 - txt.get_height()//2))
-    box.blit(info, (375 - info.get_width()//2, 160 - info.get_height()//2))
-
-    screen.blit(overlay, (0, 0))
-    screen.blit(box, (165, 230))
-
-# --- BOITE GAME OVER ---
-def afficher_game_over(screen):
-    overlay = pygame.Surface((1080, 720), pygame.SRCALPHA)
-    overlay.fill((0, 0, 0, 200))
-
-    box = pygame.Surface((700, 260), pygame.SRCALPHA)
-    pygame.draw.rect(box, (255, 180, 180), (0, 0, 700, 260), border_radius=25)
-    pygame.draw.rect(box, (200, 60, 60), (0, 0, 700, 260), width=6, border_radius=25)
-
-    font = pygame.font.SysFont("Comic Sans MS", 48, bold=True)
-    font_small = pygame.font.SysFont("Comic Sans MS", 28)
-
-    txt = font.render("Oh non... tu as perdu !", True, (120, 20, 20))
-    info = font_small.render("Appuie sur ENTER pour recommencer", True, (80, 20, 20))
-
-    box.blit(txt, (350 - txt.get_width()//2, 70 - txt.get_height()//2))
-    box.blit(info, (350 - info.get_width()//2, 160 - info.get_height()//2))
-
-    screen.blit(overlay, (0, 0))
-    screen.blit(box, (190, 230))
-
-# --- MENU D'ACCUEIL ---
-menu_actif = True
-while menu_actif:
-    menu.afficher_menu_accueil(screen, logo, bouton_start, bouton_rect)
+    m_pos = pygame.mouse.get_pos()
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            pygame.quit()
-            exit()
+            running = False
 
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if bouton_rect.collidepoint(event.pos):
-                menu_actif = False
+        # ---------------------------
+        # MENU ACCUEIL
+        # ---------------------------
+        if menu_accueil:
+            if event.type == pygame.MOUSEBUTTONDOWN and bouton_rect.collidepoint(event.pos):
+                menu_accueil = False
+            continue
 
+        # ---------------------------
+        # SPAWN OBSTACLES
+        # ---------------------------
+        if event.type == SPAWN_EVENT and not (game.en_pause or game.game_over or game.parcours_termine or affiche_regles or affiche_boutique):
+            game.spawn_dechets()
+
+        # ---------------------------
+        # TOUCHES
+        # ---------------------------
         if event.type == pygame.KEYDOWN:
+            game.pressed[event.key] = True
+
+            if not game.en_pause and not game.game_over and not game.parcours_termine and not game.saut_possible:
+                if event.key == pygame.K_LEFT: game.player.move_left()
+                if event.key == pygame.K_RIGHT: game.player.move_right()
+
             if event.key == pygame.K_RETURN:
-                menu_actif = False
 
-# --- BOUCLE DE JEU ---
-while running:
+                # Sauvegarde des données persistantes
+                ancien_calamars = game.calamars
+                ancien_points = game.points
+                ancien_niveau2 = game.niveau2_debloque
+                ancien_niveau = game.niveau
+                ancien_rose = game.pingu_rose_debloque
+                ancien_dore = game.pingu_dore_debloque
+                ancien_skin = game.skin_actuel
 
-    # --- SI LES RÈGLES SONT OUVERTES ---
-    if affiche_regles_ecran:
-        menu.afficher_regles(screen)
-        # On ne dessine QUE les règles ici pour éviter le clignotement
+                # Fin de parcours ou game over → nouvelle partie
+                if game.game_over or game.parcours_termine:
+                    game = Game('Pingu écolo! - assets/Pingu simple .png')
 
-    # --- SINON, SI LE MENU OPTION EST OUVERT ---
-    elif affiche_menu_options_ecran:
-        menu.afficher_menu_options(screen)
+                    # Restauration
+                    game.calamars = ancien_calamars
+                    game.points = ancien_points
+                    game.niveau2_debloque = ancien_niveau2
+                    game.niveau = ancien_niveau
+                    game.pingu_rose_debloque = ancien_rose
+                    game.pingu_dore_debloque = ancien_dore
+                    game.skin_actuel = ancien_skin
+                    game.changer_skin(ancien_skin)
 
-    # --- SINON, ON DESSINE LE JEU NORMALEMENT ---
+                # Sortie de pause collision
+                elif game.en_pause:
+                    game.en_pause = False
+                    game.all_dechet.empty()
+
+            if event.key == pygame.K_SPACE and game.saut_possible:
+                game.saut_effectue = True
+                game.player.jump(game.cible_x, game.cible_y)
+
+        if event.type == pygame.KEYUP:
+            game.pressed[event.key] = False
+
+        # ---------------------------
+        # CLICS SOURIS
+        # ---------------------------
+        if event.type == pygame.MOUSEBUTTONDOWN:
+
+            # Ouvrir règles
+            if info_rect.collidepoint(m_pos):
+                affiche_regles, game.en_pause, menu.slide_actuelle = True, True, 0
+
+            # Ouvrir boutique
+            elif menu_rect.collidepoint(m_pos):
+                affiche_boutique, game.en_pause = True, True
+
+            # Navigation règles
+            elif affiche_regles:
+                if menu.clic_regles(m_pos[0], m_pos[1]) == "fermer":
+                    affiche_regles, game.en_pause = False, False
+
+            # Clics boutique
+            elif affiche_boutique:
+
+                menu.slide_boutique_logic(m_pos[0], m_pos[1], game)
+
+                if bouton_close_boutique and bouton_close_boutique.collidepoint(m_pos):
+                    affiche_boutique, game.en_pause = False, False
+
+                local_m = (m_pos[0] - 90, m_pos[1] - 60)
+
+                # SKINS
+                if boutons_boutique.get("normal") and boutons_boutique["normal"].collidepoint(local_m):
+                    game.changer_skin("normal")
+
+                elif boutons_boutique.get("rose") and boutons_boutique["rose"].collidepoint(local_m):
+                    if game.pingu_rose_debloque:
+                        game.changer_skin("rose")
+                    elif game.calamars >= 3:
+                        game.calamars -= 3
+                        game.pingu_rose_debloque = True
+
+                elif boutons_boutique.get("dore") and boutons_boutique["dore"].collidepoint(local_m):
+                    if game.pingu_dore_debloque:
+                        game.changer_skin("dore")
+                    elif game.niveau2_debloque and game.calamars >= 5:
+                        game.calamars -= 5
+                        game.pingu_dore_debloque = True
+
+                # NIVEAU 2
+                elif boutons_boutique.get("niveau2") and boutons_boutique["niveau2"].collidepoint(local_m):
+                    print(game.acheter("niveau2"))
+
+    # ---------------------------
+    # AFFICHAGE
+    # ---------------------------
+    if menu_accueil:
+        menu.afficher_menu_accueil(screen, logo, bouton_start, bouton_rect)
+
     else:
+
+        if not game.en_pause and not game.game_over and not game.parcours_termine:
+
+            if game.saut_possible:
+                keys = pygame.key.get_pressed()
+                if keys[pygame.K_LEFT]:  game.cible_x -= 8
+                if keys[pygame.K_RIGHT]: game.cible_x += 8
+                if keys[pygame.K_UP]:    game.cible_y -= 8
+                if keys[pygame.K_DOWN]:  game.cible_y += 8
+
+                game.cible_x = max(50, min(1030, game.cible_x))
+                game.cible_y = max(50, min(670, game.cible_y))
+
+            game.update_timer()
+            game.player.update()
+            game.all_dechet.update()
+            game.descendre_banquise()
+            game.faire_monter_calamar()
+            game.player.update_jump()
+            game.gerer_collisions()
+            game.update_animations()
+
         screen.blit(background, (0, 0))
-        screen.blit(game.calamar, (game.calamar_x, game.calamar_y))
         screen.blit(banquise, (0, game.banquise_y))
         game.all_dechet.draw(screen)
         screen.blit(game.player.image, game.player.rect)
 
-        # COEURS
+        if game.saut_possible:
+            screen.blit(game.calamar, game.calamar_rect)
+            screen.blit(cible_img, (game.cible_x - 50, game.cible_y - 50))
+
+        font_ui = pygame.font.SysFont("Comic Sans MS", 28, bold=True)
         for i in range(game.vies):
-            screen.blit(game.coeur, (1000 - i*50, 20))
+            screen.blit(game.coeur, (1000 - i * 50, 20))
 
-        # POINTS & CALAMARS
-        font_stats = pygame.font.SysFont("Comic Sans MS", 28, bold=True)
-        txt_points = font_stats.render(f"Points : {game.points}", True, (0, 0, 0))
-        screen.blit(txt_points, (850, 70))
-        screen.blit(icon_calamar, (850, 110))
-        txt_calamars = font_stats.render(f"{game.calamars}", True, (0, 0, 0))
-        screen.blit(txt_calamars, (890, 115))
-
-        # ICONES (i et menu)
+        screen.blit(font_ui.render(f"Points: {game.points}", True, (20, 40, 80)), (650, 70))
+        screen.blit(icon_calamar, (920, 115))
+        screen.blit(font_ui.render(str(game.calamars), True, (20, 40, 80)), (970, 115))
         screen.blit(icon_info, info_rect)
         screen.blit(icon_menu, menu_rect)
 
-        # MESSAGES DE PAUSE / GAME OVER
-        if game.en_pause and not game.game_over:
-            afficher_message(screen, game.message_collision)
+        if affiche_boutique:
+            boutons_boutique, bouton_close_boutique = menu.afficher_boutique(
+                screen, game, skin_normal_img, skin_rose_img, skin_dore_img
+            )
+
+        if affiche_regles:
+            menu.afficher_regles(screen)
+
         if game.game_over:
-            afficher_game_over(screen)
+            afficher_message_centre(screen, "GAME OVER !", "ENTER pour recommencer")
+
+        elif game.parcours_termine:
+            afficher_message_centre(screen, game.message_collision, "ENTER pour rejouer")
+
+        elif game.en_pause and not affiche_regles and not affiche_boutique:
+            afficher_message_centre(screen, game.message_collision, "ENTER pour continuer")
 
     pygame.display.flip()
     clock.tick(60)
 
-    # --- LOGIQUE ---
-    if not game.en_pause and not game.game_over:
-        game.all_dechet.update()
-        game.update_timer()
-        game.descendre_banquise()
-        game.faire_monter_calamar()
-        game.gerer_collisions()
-
-    # --- DEPLACEMENT ---
-    if game.pressed.get(pygame.K_LEFT) and game.player.rect.x > 0:
-        game.player.move_left()
-    elif game.pressed.get(pygame.K_RIGHT) and game.player.rect.x + game.player.rect.width < screen.get_width():
-        game.player.move_right()
-
-    # --- EVENTS ---
-    for event in pygame.event.get():
-
-        if event.type == pygame.QUIT:
-            running = False
-            pygame.quit()
-
-        elif event.type == pygame.KEYDOWN:
-            game.pressed[event.key] = True
-
-            if game.en_pause and not game.game_over and event.key == pygame.K_RETURN:
-                game.en_pause = False
-                game.message_collision = ""
-                game.all_dechet.empty()
-
-            if game.game_over and event.key == pygame.K_RETURN:
-                game.__init__('Pingu écolo! - assets/Pingu simple .png')
-
-        elif event.type == pygame.KEYUP:
-            game.pressed[event.key] = False
-
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-
-            # --- OUVRIR REGLES ---
-            if info_rect.collidepoint(event.pos):
-                affiche_regles_ecran = True
-                menu.slide_actuelle = 0
-
-            # --- OUVRIR MENU OPTIONS ---
-            if menu_rect.collidepoint(event.pos):
-                affiche_menu_options_ecran = True
-
-            # --- CLIC DANS REGLES ---
-            if affiche_regles_ecran:
-                x, y = event.pos
-                action = menu.clic_regles(x, y)
-                if action == "fermer":
-                    affiche_regles_ecran = False
-
-            # --- CLIC DANS MENU OPTIONS ---
-            if affiche_menu_options_ecran:
-                x, y = event.pos
-
-                if not (190 <= x <= 890 and 80 <= y <= 630):
-                    affiche_menu_options_ecran = False
-
-        elif event.type == SPAWN_EVENT:
-            game.spawn_dechets()
+pygame.quit()
